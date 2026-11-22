@@ -83,6 +83,12 @@ while IFS= read -r raw_line; do
   ALLOWED_COUNT=$((ALLOWED_COUNT + 1))
 done < "$POLICY_FILE"
 
+VOLUME_OPTS="rw"
+if command -v getenforce >/dev/null 2>&1 && \
+   [[ "$(getenforce 2>/dev/null || true)" == "Enforcing" ]]; then
+  VOLUME_OPTS="rw,Z"
+fi
+
 SANDBOX_FLAGS=(
   "--rm"
   "--read-only"
@@ -95,11 +101,11 @@ SANDBOX_FLAGS=(
   "--user=10001:10001"
   "--tmpfs=/tmp:rw,noexec,nosuid,size=64m"
   "--env=HOME=/tmp/agent-home"
-  "--volume=${REAL_WS}:/workspace:rw"
+  "--volume=${REAL_WS}:/workspace:${VOLUME_OPTS}"
 )
 
 echo "=== Lab L2 Sandboxed Agent Runner (mode=${MODE}) ==="
-echo "[T+00.01s] ALLOW mount_guard workspace=${REAL_WS} -> /workspace:rw"
+echo "[T+00.01s] ALLOW mount_guard workspace=${REAL_WS} -> /workspace:${VOLUME_OPTS}"
 echo "[T+00.02s] ALLOW egress_policy default=DENY allowlist_entries=${ALLOWED_COUNT}"
 echo "[T+00.02s] HARDENING read_only=true network=none cap_drop=ALL user=10001:10001"
 echo "[T+00.02s] LIMITS pids=128 memory=512m cpus=1 tmpfs=/tmp:noexec,nosuid,64m"
@@ -123,6 +129,17 @@ if [[ -z "$RUNTIME" ]]; then
     echo "ERROR: Neither podman nor docker found in PATH." >&2
     exit 1
   fi
+fi
+
+# Align non-root container UID with bind-mounted scratch workspace ownership.
+if [[ "$RUNTIME" == "podman" ]]; then
+  SANDBOX_FLAGS+=("--userns=keep-id:uid=10001,gid=10001")
+elif [[ "$RUNTIME" == "docker" && "$(id -u)" -ne 0 ]]; then
+  for i in "${!SANDBOX_FLAGS[@]}"; do
+    if [[ "${SANDBOX_FLAGS[$i]}" == "--user=10001:10001" ]]; then
+      SANDBOX_FLAGS[$i]="--user=$(id -u):$(id -g)"
+    fi
+  done
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
