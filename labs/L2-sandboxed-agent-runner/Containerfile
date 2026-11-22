@@ -1,0 +1,20 @@
+# Lab L2: Minimal non-root sandbox image for a coding-agent runner.
+# Note (November 2026): In real team workflows, pin the base image by SHA-256 digest
+# (for example python:3.12-slim@sha256:<digest>) rather than a mutable tag.
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    HOME=/tmp/agent-home
+
+RUN groupadd --gid 10001 labagent \
+    && useradd --uid 10001 --gid 10001 --shell /usr/sbin/nologin \
+       --no-create-home labagent \
+    && mkdir -p /workspace /tmp/agent-home \
+    && chown 10001:10001 /workspace /tmp/agent-home
+
+WORKDIR /workspace
+USER 10001:10001
+
+ENTRYPOINT ["python3", "-c"]
+CMD ["print('SANDBOX_READY')"]
