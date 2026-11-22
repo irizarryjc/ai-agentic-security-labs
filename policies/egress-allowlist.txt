@@ -1,0 +1,9 @@
+# Default-deny egress allowlist for Lab L2 (Sandboxed Agent Runner)
+# Every destination NOT listed here is denied by default.
+# Blocked implicitly: public internet, 169.254.169.254 (cloud metadata),
+# RFC1918 production subnets, and arbitrary external webhooks.
+#
+# Format: <hostname_or_ip>:<port>  # <purpose>
+
+model-gateway.lab.internal:443     # Scoped model inference proxy (lab only)
+pkg-mirror.lab.internal:443        # Vetted internal package mirror (read-only)

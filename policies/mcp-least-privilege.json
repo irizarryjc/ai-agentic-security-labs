@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "policy_name": "lab-mcp-least-privilege",
+  "default_decision": "deny",
+  "server": {
+    "id": "lab-repo-tools",
+    "transport": "stdio",
+    "schema_sha256": "35694a6b79574b1a54fe492c4aae05f3744942b98b5d51fbe7c90c10ad4aaada",
+    "allow_dynamic_npx_latest": false,
+    "token_passthrough": false,
+    "expected_token_audience": "mcp://lab-repo-tools",
+    "credential_ttl_seconds": 300,
+    "required_scopes": [
+      "repo:read"
+    ]
+  },
+  "filesystem": {
+    "workspace_placeholder": "<sandbox_dir>",
+    "allowed_subdirs": [
+      "docs",
+      "src",
+      "tests"
+    ],
+    "denied_globs": [
+      ".env",
+      "*.env",
+      "*.pem",
+      "*.key",
+      ".git/*",
+      ".ssh/*",
+      ".aws/*"
+    ],
+    "max_read_bytes": 65536
+  },
+  "network": {
+    "default_egress": "deny",
+    "block_private_and_link_local": true,
+    "allowed_hosts": []
+  },
+  "tools": {
+    "read_repo_file": {
+      "decision": "allow",
+      "required_scope": "repo:read",
+      "description": "Read a single UTF-8 file inside allowed_subdirs."
+    },
+    "list_repo_files": {
+      "decision": "allow",
+      "required_scope": "repo:read",
+      "description": "List relative file paths inside allowed_subdirs."
+    },
+    "propose_patch": {
+      "decision": "ask",
+      "required_scope": "repo:patch_proposal",
+      "description": "Propose a unified diff requiring explicit human approval."
+    },
+    "run_shell": {
+      "decision": "deny",
+      "required_scope": "none",
+      "description": "Unrestricted shell execution is forbidden."
+    },
+    "http_fetch": {
+      "decision": "deny",
+      "required_scope": "none",
+      "description": "Direct outbound HTTP fetch is forbidden to prevent SSRF."
+    }
+  }
+}

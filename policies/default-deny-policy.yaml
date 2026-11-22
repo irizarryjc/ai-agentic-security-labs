@@ -1,0 +1,113 @@
+# default-deny-policy.yaml
+# Vendor-neutral baseline permission policy for coding-agent labs (Chapters 2 and 6).
+# Note (November 2026): Schema keys are illustrative; verify product-specific policy
+# syntax against your coding agent's current official documentation.
+
+policy_version: "1.0"
+policy_name: "lab-default-deny-baseline"
+default_decision: "deny"
+
+environment:
+  sandbox_root: "<sandbox_dir>/repo"
+  audit_log_path: "<log_store>/tool-decisions.jsonl"
+  inherit_host_secrets: false
+  network_egress_default: "deny"
+
+rules:
+  # Explicit ALLOW: low-impact, read-only operations inside the scratch repository.
+  allow:
+    - id: "allow-repo-read"
+      tool: "filesystem.read"
+      paths:
+        - "<sandbox_dir>/repo/**"
+      exclude_paths:
+        - "**/.env"
+        - "**/.env.*"
+        - "**/*.pem"
+        - "**/*.key"
+      rationale: "Read-only inspection of non-secret repository source files."
+
+    - id: "allow-git-status-diff"
+      tool: "git.inspect"
+      subcommands:
+        - "status"
+        - "diff"
+        - "log"
+      rationale: "Read-only repository state inspection."
+
+    - id: "allow-local-unit-tests"
+      tool: "test.runner"
+      commands:
+        - "pytest -q"
+      network: "none"
+      rationale: "Execute local test suite inside sandbox without network access."
+
+  # Explicit ASK: state-changing actions that require human approval showing full args.
+  ask:
+    - id: "ask-repo-write"
+      tool: "filesystem.write"
+      paths:
+        - "<sandbox_dir>/repo/**"
+      require_full_args_preview: true
+      rationale: "Operator must inspect exact diff and path before file modification."
+
+    - id: "ask-git-commit"
+      tool: "git.write"
+      subcommands:
+        - "add"
+        - "commit"
+      require_full_args_preview: true
+      rationale: "Human reviews staged changes before committing locally."
+
+    - id: "ask-dependency-change"
+      tool: "package.manage"
+      require_hash_pinning: true
+      require_full_args_preview: true
+      rationale: "Prevent hallucinated or unpinned dependency installation."
+
+  # Explicit DENY: high-impact, privilege-escalating, or out-of-scope operations.
+  deny:
+    - id: "deny-unrestricted-shell"
+      tool: "shell.exec"
+      rationale: "Arbitrary shell execution bypasses granular tool boundaries."
+
+    - id: "deny-host-credentials"
+      tool: "filesystem.read"
+      paths:
+        - "~/.ssh/**"
+        - "~/.aws/**"
+        - "~/.kube/**"
+        - "/etc/shadow"
+        - "**/.env"
+        - "**/.env.*"
+      rationale: "Secrets and host identities must never enter agent context."
+
+    - id: "deny-unlisted-egress"
+      tool: "network.http"
+      destinations:
+        - "*"
+      rationale: "Default-deny outbound network prevents silent data exfiltration."
+
+    - id: "deny-protected-push"
+      tool: "git.remote"
+      subcommands:
+        - "push"
+      rationale: "Agents must not push directly to remote or protected branches."
+
+    - id: "deny-production-db-and-backups"
+      tool: "database.admin"
+      actions:
+        - "drop"
+        - "truncate"
+        - "alter_schema"
+        - "delete_backup"
+        - "modify_failover"
+      rationale: "Database and backup mutations require human change control (Ch. 12)."
+
+logging:
+  log_allowed: true
+  log_asked: true
+  log_denied: true
+  redact_patterns:
+    - "CANARY_SECRET_FAKE=.*"
+    - "(?i)(api[_-]?key|token|password|secret)\\s*[:=]\\s*\\S+"
