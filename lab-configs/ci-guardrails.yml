@@ -1,0 +1,69 @@
+# Portable CI/CD Guardrails Workflow for Agent-Assisted Pull Requests
+# Dated note (November 2026): Uses GitHub Actions workflow schema as an
+# illustrative, vendor-neutral pattern. Equivalent required-check stages apply
+# to GitLab CI, Forgejo/Gitea Actions, Azure Pipelines, and Jenkins.
+#
+# Protected-branch rule requirements (configured in repository settings, outside
+# agent write scope):
+#   - Require pull request before merging (no direct pushes to main)
+#   - Require at least 1 independent human approval (dismiss stale approvals)
+#   - Require all 4 status checks below to pass before merge
+#   - Restrict branch-protection bypass to repository administrators only
+#   - Disable unreviewed auto-merge for agent or bot tokens
+
+name: Agentic Coding CI Guardrails
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Least privilege: workflow token is read-only; it cannot push or auto-merge.
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  secret-scan:
+    name: Gate 1 - Secret Hygiene Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pull request head (pin to verified full 40-char commit SHA)
+        uses: actions/checkout@<pinned_commit_sha>
+      - name: Run deterministic canary and credential pattern scan
+        run: |
+          bash labs/L9-cicd-guardrails/run-ci-gates.sh --only secret-scan
+
+  dependency-pin-check:
+    name: Gate 2 - Dependency Pin and Allowlist Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pull request head (pin to verified full 40-char commit SHA)
+        uses: actions/checkout@<pinned_commit_sha>
+      - name: Verify pinned dependencies and package allowlist
+        run: |
+          bash labs/L9-cicd-guardrails/run-ci-gates.sh --only pin-check
+
+  review-and-test-gate:
+    name: Gate 3 - Unit Tests and AST Test Integrity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pull request head (pin to verified full 40-char commit SHA)
+        uses: actions/checkout@<pinned_commit_sha>
+      - name: Run tests and vacuous-assertion detector
+        run: |
+          bash labs/L9-cicd-guardrails/run-ci-gates.sh --only tests
+
+  agent-eval-suite:
+    name: Gate 4 - Agent Security and Quality Evals
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pull request head (pin to verified full 40-char commit SHA)
+        uses: actions/checkout@<pinned_commit_sha>
+      - name: Run regression eval suite (100% required)
+        run: |
+          python3 evals/run-evals.py \
+            --cases evals/eval-cases.json \
+            --profile baseline-hardened \
+            --min-pass-rate 1.0

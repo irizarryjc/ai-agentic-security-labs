@@ -1,0 +1,65 @@
+# Change Control Ticket Template for Agent-Drafted Database/Infra Changes
+# Companion repo: https://github.com/irizarryjc/ai-agentic-security-labs
+# Principle: An agent may draft SQL, migrations, or runbooks; a human reviews,
+# approves, and executes through the existing change-control workflow.
+
+ticket_id: "CHG-0000"
+change_class: "normal"                 # standard | normal | emergency
+target_environment: "staging"          # lab | staging | production
+target_system: "<db_host>:<db_name>"
+service_name: "billing-service"
+requested_by: "engineer-handle"
+
+agent_provenance:
+  drafted_by_agent: true
+  agent_identity: "coding-agent-sandbox-01"
+  session_id: "sess-example-001"
+  tool_policy_file: "<policy_file>"
+  draft_diff_sha256: "<sha256_of_reviewed_sql_or_tf_diff>"
+  direct_agent_execution_allowed: false
+
+human_ownership:
+  human_executor: "dba-or-sre-handle"
+  dba_reviewer: "senior-dba-handle"
+  cab_approver: "change-board-owner"
+  execution_window_utc: "YYYY-MM-DD HH:MM UTC to YYYY-MM-DD HH:MM UTC"
+
+change_artifacts:
+  migration_path: "migrations/0042_add_tax_index.sql"
+  rollback_path: "migrations/0042_add_tax_index_rollback.sql"
+  precheck_query_path: "migrations/0042_precheck.sql"
+  verification_query_path: "migrations/0042_verify.sql"
+  contains_destructive_ddl: false      # DROP, TRUNCATE, destructive ALTER
+  touches_replication_or_failover: false
+  touches_backup_or_dr_config: false
+
+backup_and_recovery:
+  backup_repo: "<backup_repo>"
+  pre_change_backup_id: "bkp-pre-chg-0000"
+  backup_checksum_sha256: "<sha256_of_verified_backup>"
+  backup_repo_immutable: true
+  agent_has_backup_delete_access: false
+  last_tested_restore_month: "2026-11"
+  estimated_rto_minutes: 15
+  estimated_rpo_minutes: 5
+
+ci_and_quality_gates:
+  secret_scan_passed: true
+  dependency_pin_check_passed: true
+  eval_suite_passed: true
+  staging_dry_run_passed: true
+  rollback_dry_run_passed: true
+
+human_approval:
+  approved: false                      # Must be true before execution
+  approved_diff_sha256: "<must_match_draft_diff_sha256>"
+  approval_queue_ref: "<approval_queue>/CHG-0000"
+  approved_at_utc: "YYYY-MM-DD HH:MM UTC"
+
+post_change_verification:
+  integrity_check_passed: false
+  row_count_matches_expected: false
+  replication_lag_within_slo: false
+  error_log_reviewed: false
+  rollback_triggered: false
+  audit_log_ref: "<log_store>/chg-0000.jsonl"
