@@ -1,0 +1,5 @@
+# DEFENSIVE LAB FIXTURE ONLY (INTENTIONALLY FAILS PINNING CHECK)
+# Contains a hallucinated package name and unhashed/unpinned specs.
+requests==2.32.3
+pyfast-order-validator-ai>=1.0.0
+urllib3
