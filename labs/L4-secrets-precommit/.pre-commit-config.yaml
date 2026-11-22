@@ -1,0 +1,14 @@
+# Lab L4: Pre-commit configuration for local secret scanning.
+# Dated note (November 2026): When adding external community hooks (for example
+# gitleaks or detect-secrets), pin rev to an immutable 40-character commit SHA
+# rather than a mutable tag. Verify current hook options in official docs.
+repos:
+  - repo: local
+    hooks:
+      - id: lab-scan-secrets
+        name: Block canary secrets and forbidden credential files
+        entry: python3 labs/L4-secrets-precommit/scan-secrets.py
+        language: system
+        pass_filenames: true
+        stages:
+          - pre-commit
